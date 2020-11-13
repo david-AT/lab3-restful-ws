@@ -1,6 +1,7 @@
 package rest.addressbook;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 
 import java.io.IOException;
@@ -52,6 +53,16 @@ public class AddressBookServiceTest {
     // Verify that GET /contacts is well implemented by the service, i.e
     // complete the test to ensure that it is safe and idempotent
     //////////////////////////////////////////////////////////////////////
+      
+      // Safe: The last operation not change the initial State
+      //       (the list size is the same).
+      assertEquals(0, ab.getPersonList().size());
+      
+      // Idempotent: The last two operations returns the same result
+      //             (the list size is the same).
+      Response response2 = client.target("http://localhost:8282/contacts").request().get();
+      assertEquals(200, response2.getStatus());
+      assertEquals(0, response2.readEntity(AddressBook.class).getPersonList().size());
   }
 
   @Test
@@ -93,6 +104,20 @@ public class AddressBookServiceTest {
     // Verify that POST /contacts is well implemented by the service, i.e
     // complete the test to ensure that it is not safe and not idempotent
     //////////////////////////////////////////////////////////////////////
+      
+      // Not Safe: The last operation change the initial State
+      //       (the list size is not the same, changes from 0 to 1).
+      assertNotEquals(0,ab.getPersonList().size());
+      assertEquals(1,ab.getPersonList().size());
+      
+      // Not idempotent: The last two operations not returns the same result
+      //                 (the name is the same but not the ID).
+      Response response2 = client.target("http://localhost:8282/contacts")
+        .request(MediaType.APPLICATION_JSON)
+        .post(Entity.entity(juan, MediaType.APPLICATION_JSON));
+      Person juanUpdated2 = response2.readEntity(Person.class);
+      assertEquals(juanUpdated2.getName(), juanUpdated.getName());
+      assertNotEquals(juanUpdated2.getId(), juanUpdated.getId());
 
   }
 
@@ -148,6 +173,17 @@ public class AddressBookServiceTest {
     // Verify that GET /contacts/person/3 is well implemented by the service, i.e
     // complete the test to ensure that it is safe and idempotent
     //////////////////////////////////////////////////////////////////////
+      
+      // Safe: The last operation not change the initial State
+      //       (the third person continues with the initial ID).
+      assertEquals(3,ab.getPersonList().get(2).getId());
+      
+      // Idempotent: The last two operations returns the same result
+      //             (the second person returned has the same ID as the first).
+      Response response2 = client.target("http://localhost:8282/contacts/person/3")
+        .request(MediaType.APPLICATION_JSON).get();
+      Person maria2 = response2.readEntity(Person.class);
+      assertEquals(mariaUpdated.getId(), maria2.getId());
 
   }
 
@@ -180,6 +216,23 @@ public class AddressBookServiceTest {
     // Verify that GET /contacts is well implemented by the service, i.e
     // complete the test to ensure that it is safe and idempotent
     //////////////////////////////////////////////////////////////////////
+      
+      Response response2 = client.target("http://localhost:8282/contacts")
+        .request(MediaType.APPLICATION_JSON).get();
+      AddressBook addressBookRetrieved2 = response2
+        .readEntity(AddressBook.class);
+      
+      // Safe: The last operation not change the initial State
+      //       (the list size is the same).
+      assertEquals(ab.getPersonList().size(), addressBookRetrieved2.getPersonList().size());
+      
+      // Idempotent: The last two operations returns the same result
+      //             (in both results the list size and the list names are the same).
+      assertEquals(addressBookRetrieved2.getPersonList().size(), addressBookRetrieved.getPersonList().size());
+      int newSize = addressBookRetrieved2.getPersonList().size();
+      for (int i = 0; i < newSize; i++) {
+          assertEquals(addressBookRetrieved.getPersonList().get(i).getName(), addressBookRetrieved2.getPersonList().get(i).getName());
+      }
 
   }
 
@@ -233,6 +286,18 @@ public class AddressBookServiceTest {
     // Verify that PUT /contacts/person/2 is well implemented by the service, i.e
     // complete the test to ensure that it is idempotent but not safe
     //////////////////////////////////////////////////////////////////////
+      
+      // Not safe: The last operation change the initial State
+      //           (the name of the updated person has change).
+      assertNotEquals(juan.getName(), ab.getPersonList().get(1).getName());
+      
+      // Idempotent: The last two operations returns the same result
+      //             (the last two results return the same name).
+      Response response2 = client.target("http://localhost:8282/contacts/person/2")
+        .request(MediaType.APPLICATION_JSON)
+        .put(Entity.entity(maria, MediaType.APPLICATION_JSON));
+      Person mariaRetrieved2 = response2.readEntity(Person.class);
+      assertEquals(mariaRetrieved2.getName(), juanUpdated.getName());
 
   }
 
@@ -266,6 +331,18 @@ public class AddressBookServiceTest {
     // Verify that DELETE /contacts/person/2 is well implemented by the service, i.e
     // complete the test to ensure that it is idempotent but not safe
     //////////////////////////////////////////////////////////////////////
+      
+      // Not safe: The last operation change the initial State
+      //           (a person has been deleted, so now the size is 1, not 2).
+      assertNotEquals(2, ab.getPersonList().size());
+      
+      // THIS IS NOT IDEMPOTENT !!!
+      //   When you delete for the first time you get 204 status and the
+      //   second a 404 status, different results. However, the assert function
+      //   is valid because on line 312 the verification code changes the status to 404.
+      Response response2 = client.target("http://localhost:8282/contacts/person/2")
+        .request().delete();
+      assertEquals(response.getStatus(), response2.getStatus());
 
   }
 
