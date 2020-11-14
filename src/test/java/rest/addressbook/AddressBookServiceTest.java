@@ -106,7 +106,7 @@ public class AddressBookServiceTest {
     //////////////////////////////////////////////////////////////////////
       
       // Not Safe: The last operation change the initial State
-      //       (the list size is not the same, changes from 0 to 1).
+      //           (the list size is not the same, changes from 0 to 1).
       assertNotEquals(0,ab.getPersonList().size());
       assertEquals(1,ab.getPersonList().size());
       
